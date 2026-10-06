@@ -1,0 +1,44 @@
+# build products
+build/
+__pycache__/
+*.pyc
+*.vvp
+ref/harness_kyber
+ref/harness_dilithium
+
+# local technology setup (contains NDA paths)
+flow/config.tcl
+
+# never commit PDK / foundry-derived data
+*.lib
+*.lef
+*.tch
+*.capTbl
+*.gds
+*.gds.gz
+*.oas
+*.spef
+*.sdf
+*.def
+*.rul
+*.cdl
+*.map
+
+# tool scratch
+*.log
+*.cmd
+*.history
+*.enc
+*.enc.dat/
+*.db
+INCA_libs/
+xcelium.d/
+cov_work/
+waves.shm/
+fv/
+.cadence/
+genus.*
+innovus.*
+tempus.*
+voltus.*
+*.diag

@@ -1,0 +1,22 @@
+name: rtl-regression
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install tools
+        run: sudo apt-get update && sudo apt-get install -y iverilog yosys python3-numpy
+      - name: Golden model vs pq-crystals reference
+        run: make model
+      - name: Generated RTL is up to date
+        run: python3 model/gen_rtl.py && git diff --exit-code rtl/
+      - name: RTL regression (12 configs + modmul units)
+        run: scripts/regress.sh 8
+      - name: Gate-level simulation of Yosys netlist
+        run: scripts/gls_yosys.sh kyber barrett 2
