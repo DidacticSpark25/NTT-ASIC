@@ -14,8 +14,11 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y iverilog yosys python3-numpy
       - name: Golden model vs pq-crystals reference
         run: make model
-      - name: Generated RTL is up to date
-        run: python3 model/gen_rtl.py && git diff --exit-code rtl/
+      - name: Generated RTL and committed vectors are up to date
+        run: |
+          python3 model/gen_rtl.py
+          for s in kyber dilithium; do python3 model/gen_vectors.py --scheme $s --n 16 --out tb/vectors/$s; done
+          git diff --exit-code rtl/ tb/vectors/
       - name: RTL regression (12 configs + modmul units)
         run: scripts/regress.sh 8
       - name: Gate-level simulation of Yosys netlist

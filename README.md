@@ -125,6 +125,7 @@ cp flow/config.example.tcl flow/config.tcl
 flow/find_pdk.sh /path/to/gpdk045           # paste the printed paths into flow/config.tcl
 
 make xrun-all                                # Xcelium regression + merged coverage
+make waves SCHEME=kyber RED=barrett P=2      # 1-polynomial run with waveforms, opens SimVision
 make flow SCHEME=kyber RED=barrett P=2 CLK=3.0   # syn -> lec -> pnr -> sta -> power -> GDSII
 make gls     SCHEME=kyber RED=barrett P=2    # post-synthesis gate-level sim
 make gls-sdf SCHEME=kyber RED=barrett P=2    # post-route gate-level sim with SDF

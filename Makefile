@@ -12,6 +12,7 @@
 #
 # Cadence flow (lab machines; needs flow/config.tcl):
 #   make xrun         Xcelium simulation + coverage for one config (make xrun-all: all 12)
+#   make waves        Xcelium run with a waveform dump, then opens SimVision
 #   make syn          Genus synthesis
 #   make lec          Conformal equivalence RTL vs netlist
 #   make gls          Xcelium gate-level sim of the synthesized netlist
@@ -42,10 +43,10 @@ INNOVUS ?= innovus
 TEMPUS  ?= tempus
 VOLTUS  ?= voltus
 
-.PHONY: help model rtl regress gls-yosys cfg xrun xrun-all syn lec gls pnr gls-sdf sta power drc lvs flow sweep ppa clean check-config
+.PHONY: help model rtl regress gls-yosys cfg xrun waves xrun-all syn lec gls pnr gls-sdf sta power drc lvs flow sweep ppa clean check-config
 
 help:
-	@sed -n '2,30p' Makefile
+	@sed -n '2,31p' Makefile
 
 # ---------------- open-source ----------------
 model:
@@ -73,10 +74,14 @@ check-config:
 	@test -f flow/config.tcl || (echo "ERROR: cp flow/config.example.tcl flow/config.tcl and edit the PDK paths"; exit 1)
 
 # ---------------- Cadence ----------------
-xrun: rtl
+xrun:
 	flow/xcelium/run_xrun.sh $(SCHEME) $(RED) $(P) $(or $(NTEST),16)
 
-xrun-all: rtl
+waves:
+	WAVES=1 flow/xcelium/run_xrun.sh $(SCHEME) $(RED) $(P) $(or $(NTEST),1)
+	simvision build/xcelium/waves_$(CFG).shm -input flow/xcelium/waves.svcf &
+
+xrun-all:
 	flow/xcelium/run_xrun.sh all $(or $(NTEST),16)
 
 syn: check-config rtl cfg

@@ -1,0 +1,49 @@
+# waves.svcf - SimVision setup: opens a waveform window with the signals worth looking at.
+#   simvision build/xcelium/waves_<cfg>.shm -input flow/xcelium/waves.svcf &
+# If your SimVision version rejects a line, open the Design Browser and send
+# tb_ntt_core.dut to the waveform window instead.
+
+window new WaveWindow -name "NTT"
+waveform using "NTT"
+
+# --- control: watch LOAD -> COMPUTE (one burst per layer) -> UNLOAD ---
+waveform add -signals {
+    tb_ntt_core.clk
+    tb_ntt_core.rst_n
+    tb_ntt_core.start
+    tb_ntt_core.inverse
+    tb_ntt_core.dut.state
+    tb_ntt_core.dut.li
+    tb_ntt_core.dut.k
+    tb_ntt_core.dut.cnt
+    tb_ntt_core.dut.draining
+    tb_ntt_core.done
+}
+
+# --- streaming interfaces (valid/ready handshakes, random stalls from the TB) ---
+waveform add -signals {
+    tb_ntt_core.in_valid
+    tb_ntt_core.in_ready
+    tb_ntt_core.in_data
+    tb_ntt_core.out_valid
+    tb_ntt_core.out_ready
+    tb_ntt_core.out_data
+}
+
+# --- butterfly lane 0: operands, twiddle, results 5 cycles later ---
+waveform add -signals {
+    {tb_ntt_core.dut.g_lane[0].idx_a}
+    {tb_ntt_core.dut.g_lane[0].idx_b}
+    {tb_ntt_core.dut.g_lane[0].u_bf.a}
+    {tb_ntt_core.dut.g_lane[0].u_bf.b}
+    {tb_ntt_core.dut.g_lane[0].u_bf.w}
+    {tb_ntt_core.dut.g_lane[0].u_bf.a_out}
+    {tb_ntt_core.dut.g_lane[0].u_bf.b_out}
+}
+
+# --- memory banks: one read and one write per bank per cycle, never a conflict ---
+waveform add -signals {
+    tb_ntt_core.dut.b_re
+    tb_ntt_core.dut.b_we
+    tb_ntt_core.dut.wb_valid
+}

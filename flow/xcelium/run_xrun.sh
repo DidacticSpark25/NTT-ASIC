@@ -3,10 +3,15 @@
 # run_xrun.sh - RTL simulation + code coverage with Cadence Xcelium
 #
 #   flow/xcelium/run_xrun.sh <kyber|dilithium> <barrett|montgomery> <P> [NTEST]
-#   flow/xcelium/run_xrun.sh all [NTEST]          # all 12 configurations + merged coverage
+#   flow/xcelium/run_xrun.sh all [NTEST]                 # all 12 configs + merged coverage
+#   WAVES=1 flow/xcelium/run_xrun.sh kyber barrett 2 1   # also dump waveforms for SimVision
 #
 # Same self-checking testbench and vectors as the open-source regression.
 # Coverage: block, expression, toggle, FSM on the DUT; report via IMC.
+#
+# Test vectors: generated with python3 when it is available, otherwise the
+# pre-generated set in tb/vectors/ (16 polynomials per scheme) is used, so the
+# lab machine needs nothing but Xcelium.
 # ---------------------------------------------------------------------------
 set -eu
 REPO=$(cd "$(dirname "$0")/../.." && pwd)
@@ -21,8 +26,31 @@ one() {   # scheme red P ntest
     local si=$([ "$s" = kyber ] && echo 0 || echo 1)
     local ri=$([ "$r" = barrett ] && echo 0 || echo 1)
     local name=${s}_${r}_p${p}
-    python3 "$REPO/model/gen_vectors.py" --scheme "$s" --n "$n" --out "$REPO/build/vec/$s" >/dev/null
-    xrun -64bit -q -timescale 1ns/1ps -access +r \
+
+    local vec
+    if command -v python3 >/dev/null 2>&1; then
+        python3 "$REPO/model/gen_vectors.py" --scheme "$s" --n "$n" --out "$REPO/build/vec/$s" >/dev/null
+        vec=$REPO/build/vec/$s
+    else
+        vec=$REPO/tb/vectors/$s
+        if [ "$n" -gt 16 ]; then n=16; fi
+    fi
+
+    local access=+r
+    local wave_args=()
+    if [ "${WAVES:-0}" = 1 ]; then
+        # record every signal of the testbench and DUT into a SimVision database
+        {
+            echo "database -open waves -shm -into waves_$name.shm -default"
+            echo "probe -create tb_ntt_core -depth all -all -memories -shm -database waves"
+            echo "run"
+            echo "exit"
+        } > "waves_$name.tcl"
+        access=+rwc
+        wave_args=(-input "waves_$name.tcl")
+    fi
+
+    xrun -64bit -q -timescale 1ns/1ps -access "$access" ${wave_args[@]+"${wave_args[@]}"} \
         -incdir "$REPO/rtl" \
         -top tb_ntt_core \
         -defparam tb_ntt_core.SCHEME=$si -defparam tb_ntt_core.RED=$ri \
@@ -32,8 +60,12 @@ one() {   # scheme red P ntest
         -xmlibdirname "xcelium.d.$name" \
         -l "xrun_$name.log" \
         "$REPO/tb/tb_ntt_core.v" $RTL \
-        +vec="$REPO/build/vec/$s"
+        +vec="$vec"
     grep -E "^(PASS|FAIL|CONFIG)" "xrun_$name.log" | sed "s/^/$name: /"
+    if [ "${WAVES:-0}" = 1 ]; then
+        echo "waveforms: $WORK/waves_$name.shm"
+        echo "open with: simvision $WORK/waves_$name.shm -input $REPO/flow/xcelium/waves.svcf &"
+    fi
 }
 
 if [ "${1:-}" = all ]; then
@@ -42,13 +74,13 @@ if [ "${1:-}" = all ]; then
         one $s $r $p "$N"
     done; done; done
     # merge all runs and report
-    cat > imc_report.tcl <<EOF
-merge cov_work/ntt/* -out merged -overwrite
-load -run cov_work/ntt/merged
-report -summary -inst -metrics all -out coverage_summary.rpt
-report -detail  -inst -metrics fsm -out coverage_fsm.rpt
-exit
-EOF
+    {
+        echo "merge cov_work/ntt/* -out merged -overwrite"
+        echo "load -run cov_work/ntt/merged"
+        echo "report -summary -inst -metrics all -out coverage_summary.rpt"
+        echo "report -detail  -inst -metrics fsm -out coverage_fsm.rpt"
+        echo "exit"
+    } > imc_report.tcl
     imc -exec imc_report.tcl -nocopyright > imc.log 2>&1 || echo "WARN: IMC report step failed, see $WORK/imc.log"
     echo "coverage: $WORK/coverage_summary.rpt"
 else
