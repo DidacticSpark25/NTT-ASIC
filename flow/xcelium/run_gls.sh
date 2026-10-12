@@ -19,7 +19,12 @@ ri=$(awk '/NTT_RED/{print $3}'    "$BUILD/ntt_cfg.vh")
 p=$(awk '/NTT_P/{print $3}'       "$BUILD/ntt_cfg.vh")
 s=$([ "$si" = 0 ] && echo kyber || echo dilithium)
 N=${NTEST:-4}
-python3 "$REPO/model/gen_vectors.py" --scheme "$s" --n "$N" --out "$REPO/build/vec/$s" >/dev/null
+if command -v python3 >/dev/null 2>&1; then
+    python3 "$REPO/model/gen_vectors.py" --scheme "$s" --n "$N" --out "$REPO/build/vec/$s" >/dev/null
+    VEC=$REPO/build/vec/$s
+else
+    VEC=$REPO/tb/vectors/$s          # pre-generated, committed
+fi
 
 mkdir -p "$BUILD/gls_$STAGE" && cd "$BUILD/gls_$STAGE"
 if [ "$STAGE" = pnr ]; then
@@ -36,7 +41,7 @@ xrun -64bit -q -timescale 1ns/1ps -access +r -define GLS \
     -incdir "$REPO/rtl" -top tb_ntt_core \
     -defparam tb_ntt_core.SCHEME=$si -defparam tb_ntt_core.RED=$ri \
     -defparam tb_ntt_core.P=$p -defparam tb_ntt_core.NTEST=$N \
-    "${TIMING[@]}" \
+    ${TIMING[@]+"${TIMING[@]}"} \
     -v "$STD_VERILOG" "$NET" "$REPO/tb/tb_ntt_core.v" \
-    "${EXTRA[@]}" +vec="$REPO/build/vec/$s" -l gls.log
+    ${EXTRA[@]+"${EXTRA[@]}"} +vec="$VEC" -l gls.log
 grep -E "^(PASS|FAIL)" gls.log

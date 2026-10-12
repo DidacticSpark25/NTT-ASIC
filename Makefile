@@ -53,6 +53,8 @@ model:
 	$(MAKE) -C ref
 	python3 model/test_model.py
 
+# The generated RTL (ntt_tw_rom.v, ntt_params.vh, ntt_defs.vh) is committed, so the
+# Cadence targets never need python. Re-run this only after changing the model.
 rtl:
 	python3 model/gen_rtl.py
 
@@ -84,7 +86,7 @@ waves:
 xrun-all:
 	flow/xcelium/run_xrun.sh all $(or $(NTEST),16)
 
-syn: check-config rtl cfg
+syn: check-config cfg
 	@mkdir -p $(BUILD)/syn
 	cd $(BUILD)/syn && $(GENUS) -batch -files $(REPO)/flow/genus/syn.tcl -log genus
 
@@ -118,7 +120,7 @@ lvs: check-config
 flow: syn lec pnr sta power
 	@echo "GDSII: $(BUILD)/pnr/out/ntt_top.gds"
 
-sweep: check-config rtl
+sweep: check-config
 	scripts/sweep.sh
 
 ppa:
