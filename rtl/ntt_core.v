@@ -170,8 +170,8 @@ module ntt_core #(
     generate
         for (gk = 0; gk < 8; gk = gk + 1) begin : g_k
             for (gl = 0; gl < P; gl = gl + 1) begin : g_l
-                localparam [7:0] LANE = gl;
-                wire [7:0] ia = lane_idx(gk, cnt, LANE);
+                wire [7:0] lane_no = gl;          // genvar -> 8-bit constant (Verilog-2001)
+                wire [7:0] ia = lane_idx(gk, cnt, lane_no);
                 assign ia_all[(gk*P + gl)*8 +: 8] = ia;
                 assign tw_all[(gk*P + gl)*8 +: 8] = (8'd128 >> gk) | (ia >> (gk + 1));
             end
@@ -322,9 +322,8 @@ module ntt_core #(
     // ------------------------------------------------------------------
     generate
         for (gl = 0; gl < NB; gl = gl + 1) begin : g_out
-            localparam [7:0] LANE = gl;
             reg [B-1:0] osel;
-            wire [7:0] oidx = {ucnt[AW-1:0], LANE[B-1:0]};
+            wire [7:0] oidx = (ucnt[AW-1:0] << B) | gl;   // {beat, lane}
             always @(posedge clk) if (rd_fire) osel <= bank_of(oidx);
             assign out_data[gl*W +: W] = bank_rdata[osel*W +: W];
         end

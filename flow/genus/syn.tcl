@@ -23,7 +23,7 @@ if {[file exists $QRC_TECH]} { set_db qrc_tech_file $QRC_TECH }
 # ---------------- RTL ----------------
 # ntt_cfg.vh (per configuration) lives in $BUILD; shared headers live in rtl/
 set_db init_hdl_search_path [list $BUILD $REPO/rtl]
-read_hdl -language v2001 [list \
+read_hdl -sv [list \
     $REPO/rtl/ntt_top.v      \
     $REPO/rtl/ntt_core.v     \
     $REPO/rtl/ntt_butterfly.v\
