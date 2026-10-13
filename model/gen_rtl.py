@@ -69,6 +69,7 @@ def gen_rom():
              "// where m = 128 >> k is the number of blocks in that layer.",
              "// Forward table: zeta^brv(idx).  Inverse table: -zeta[2m-1-blk].",
              "// Montgomery builds store every entry pre-multiplied by R = 2^W.",
+             "`timescale 1ns/1ps",
              "module ntt_tw_rom #(",
              "    parameter SCHEME = 0,   // 0 = kyber, 1 = dilithium",
              "    parameter RED    = 0,   // 0 = barrett, 1 = montgomery",
