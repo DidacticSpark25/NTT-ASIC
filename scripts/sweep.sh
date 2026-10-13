@@ -30,7 +30,7 @@ for s in $SCHEMES; do for r in $REDS; do for p in $PS; do
     fi
 done; done; done
 
-if command -v python3 >/dev/null 2>&1; then
+if python3 -c "import dataclasses" >/dev/null 2>&1; then
     python3 scripts/collect_ppa.py
 else
     echo "python3 not found: copy build/*/syn/rpt and build/*/pnr/rpt to a machine with python, then run scripts/collect_ppa.py"

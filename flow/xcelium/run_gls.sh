@@ -19,7 +19,7 @@ ri=$(awk '/NTT_RED/{print $3}'    "$BUILD/ntt_cfg.vh")
 p=$(awk '/NTT_P/{print $3}'       "$BUILD/ntt_cfg.vh")
 s=$([ "$si" = 0 ] && echo kyber || echo dilithium)
 N=${NTEST:-4}
-if command -v python3 >/dev/null 2>&1; then
+if python3 -c "import dataclasses" >/dev/null 2>&1; then
     python3 "$REPO/model/gen_vectors.py" --scheme "$s" --n "$N" --out "$REPO/build/vec/$s" >/dev/null
     VEC=$REPO/build/vec/$s
 else

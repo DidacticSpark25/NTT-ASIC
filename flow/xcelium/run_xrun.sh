@@ -28,7 +28,7 @@ one() {   # scheme red P ntest
     local name=${s}_${r}_p${p}
 
     local vec
-    if command -v python3 >/dev/null 2>&1; then
+    if python3 -c "import dataclasses" >/dev/null 2>&1; then
         python3 "$REPO/model/gen_vectors.py" --scheme "$s" --n "$n" --out "$REPO/build/vec/$s" >/dev/null
         vec=$REPO/build/vec/$s
     else
