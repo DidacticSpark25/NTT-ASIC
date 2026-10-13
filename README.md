@@ -5,6 +5,13 @@ operation of the NIST post-quantum standards **ML-KEM (Kyber)** and **ML-DSA (Di
 Taken from a Python golden model through Verilog RTL, verification, synthesis, equivalence
 checking, place & route and sign-off to a GDSII layout on Cadence **GPDK045**.
 
+> **Implemented RTL-to-GDSII in the lab (Kyber, Barrett, 2 butterflies):** Xcelium 0 errors → Genus 13.4k cells →
+> Innovus GDSII at **333 MHz** with **+55 ps post-route setup slack** and +60 ps hold slack,
+> **0.138 mm² die** (56,648 µm² of cells), **0 DRC / 0 connectivity violations**, **23.8 mW**,
+> **1.47 µs per Kyber NTT**. Details in [results/lab_kyber_barrett_p2.md](results/lab_kyber_barrett_p2.md).
+
+<p align="center"><img src="docs/img/layout_routed.png" width="420" alt="Routed NTT accelerator layout, 45 nm"></p>
+
 The project is a design-space study along two axes:
 
 * **Modular reduction:** Barrett vs. Montgomery, same pipeline depth, compared on area and timing.
@@ -16,7 +23,7 @@ The project is a design-space study along two axes:
 | **Languages** | Verilog-2001 (RTL + testbenches), Python (golden model, vector generation, PPA scripts), Tcl |
 | **Cadence tools** | Xcelium (sim + coverage, GLS with SDF), Genus, Conformal LEC, Innovus, Tempus, Voltus, Pegasus |
 | **Open-source checks** | Icarus Verilog regression, Yosys gate-level simulation (also in CI) |
-| **Technology** | Cadence GPDK045 / gsclib045 (45 nm) |
+| **Technology** | Cadence 45 nm GPDK045 (gsclib045), slow/fast corners |
 
 ---
 
@@ -86,9 +93,9 @@ to `[0, q)`.
 | **RTL regression** (`make regress`) | 12 core configs (forward, inverse, round trip, random valid/ready stalls) + 4 modmul units | **947,460 checks, 0 errors** |
 | Gate-level (`make gls-yosys`) | Yosys-synthesized netlist through the same testbench | pass |
 | Mutation sanity | injected bugs (wrong drain depth, broken bank hash) | caught by the testbench |
-| Xcelium + coverage | same testbench, block/expression/toggle/FSM coverage | run on lab tools |
-| Conformal LEC | RTL vs Genus netlist | run on lab tools |
-| Post-route GLS | Innovus netlist + SDF in Xcelium | run on lab tools |
+| **Xcelium** (lab) | same testbench on Cadence Xcelium 24.09 | **0 errors**; 490 cycles/NTT, matches the model |
+| Conformal LEC | RTL vs Genus netlist | script ready (`make lec`), not yet run |
+| Post-route GLS | Innovus netlist + SDF in Xcelium | script ready (`make gls-sdf`), not yet run |
 
 ---
 
@@ -120,6 +127,13 @@ make gls-yosys      # gate-level sanity check
 
 ### Cadence flow (lab machine)
 
+The quickest path, exactly as run for the results below, is in [`flow/lab/`](flow/lab/README.md):
+```bash
+genus -files flow/lab/genus_lab.tcl                    # edit LIBS first
+mkdir -p pnr && cd pnr && innovus -files ../flow/lab/innovus_lab.tcl
+```
+
+The full Makefile flow (all configurations, LEC, GLS, Tempus, Voltus, DRC/LVS):
 ```bash
 cp flow/config.example.tcl flow/config.tcl
 flow/find_pdk.sh /path/to/gpdk045           # paste the printed paths into flow/config.tcl
@@ -140,22 +154,44 @@ All outputs go to `build/<scheme>_<reduction>_p<P>/{syn,pnr,sta,power}`. The GDS
 
 ---
 
-## Results (gpdk045, slow corner)
+## Results (45 nm, slow corner)
 
-> Filled in from `make sweep` / `make ppa` (writes `results/ppa.md` and `results/ppa.png`).
+### Lab run: Kyber, Barrett, P = 2, 3.0 ns clock
 
-| Config | Cell area (um^2) | fmax (MHz) | Cycles/NTT | Latency (us) | kNTT/s | Power (mW) | ATP |
-|---|---|---|---|---|---|---|---|
-| kyber_barrett_p1 | | | 938 | | | | |
-| kyber_barrett_p2 | | | 490 | | | | |
-| kyber_barrett_p4 | | | 266 | | | | |
-| kyber_montgomery_p1 | | | 938 | | | | |
-| kyber_montgomery_p2 | | | 490 | | | | |
-| kyber_montgomery_p4 | | | 266 | | | | |
-| dilithium_barrett_p1..p4 | | | 1072 / 560 / 304 | | | | |
-| dilithium_montgomery_p1..p4 | | | 1072 / 560 / 304 | | | | |
+| Stage | Metric | Value |
+|---|---|---|
+| Xcelium | forward / round-trip / inverse NTT vs golden model | **0 errors** |
+| Genus | cells (flip-flops) | 13,374 (3,618) |
+| Genus | setup slack @ 3.0 ns | +7 ps |
+| Innovus | die area / cell area | **138,416 µm²** (≈ 372 × 372 µm) / **56,648 µm²** |
+| Innovus | instances, utilization | 14,125, 45.7 % |
+| Innovus | post-route setup / hold WNS | **+0.055 ns / +0.060 ns**, 0 violations (fmax ≈ 340 MHz) |
+| Innovus | DRC, connectivity, DRVs | **0 / 0 / 0** |
+| Innovus | power (vectorless, 333 MHz, 1.08 V) | **23.8 mW** |
+| Derived | latency, throughput, energy per Kyber NTT | **1.47 µs**, 680 k NTT/s, ≈ 35 nJ |
 
-Layout screenshots go in `docs/img/`.
+What the layout shows:
+* **The coefficient banks dominate area.** 3,118 flip-flops holding the 256 × 12-bit banks take 47 % of cell area.
+  SRAM macros are the next step.
+* **The critical path is the bank crossbar, not the modular multiplier,** both after synthesis and after routing.
+  The 3-stage Barrett multiplier has slack to spare.
+
+| Floorplan + power grid | Placed | Routed |
+|---|---|---|
+| ![floorplan](docs/img/layout_floorplan.png) | ![placed](docs/img/layout_placed.png) | ![routed](docs/img/layout_routed.png) |
+
+![Xcelium / SimVision waveform: three transforms, 490 compute cycles each](docs/img/xcelium_waveform.png)
+
+### Design-space sweep (next)
+
+`make sweep` fills this table for all 12 configurations (`results/ppa.md`, `results/ppa.png`).
+
+| Config | Cycles/NTT | Cell area (µm²) | fmax (MHz) | Power (mW) |
+|---|---|---|---|---|
+| kyber_barrett_p2 (lab) | 490 | 56,648 | ≈ 340 | 23.8 |
+| kyber_montgomery_p2 | 490 | | | |
+| kyber_{barrett,montgomery}_p1 / p4 | 938 / 266 | | | |
+| dilithium_* p1 / p2 / p4 | 1072 / 560 / 304 | | | |
 
 ---
 
@@ -167,8 +203,10 @@ ref/        official CRYSTALS reference NTT (C) + harness used for cross-checkin
 rtl/        ntt_top, ntt_core, ntt_butterfly, ntt_modmul, ntt_bank, ntt_tw_rom (generated)
 tb/         self-checking testbenches (core, modmul); GLS mode via `define GLS
 flow/       Cadence scripts: genus/ conformal/ innovus/ tempus/ voltus/ xcelium/ pv/, SDC
+flow/lab/   the condensed Genus + Innovus scripts used for the lab run
 scripts/    regression, Yosys GLS, design-space sweep, PPA collection
-docs/       week plan, notes, layout screenshots
+results/    measured results (lab run)
+docs/       week plan, layout and waveform screenshots
 ```
 
 PDK files (Liberty, LEF, QRC, GDS, rule decks) are under NDA and are never committed.

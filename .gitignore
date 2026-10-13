@@ -42,3 +42,9 @@ innovus.*
 tempus.*
 voltus.*
 *.diag
+
+# lab-run outputs (flow/lab/*.tcl)
+syn_out/
+syn_mont/
+pnr/
+rtl/ntt_cfg.vh
